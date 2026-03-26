@@ -23,4 +23,13 @@ RUN git clone --recursive https://github.com/ZiYang-xie/WorldGen.git --depth 1 &
     python3.11 -m pip install . && \
     python3.11 -m pip install git+https://github.com/facebookresearch/pytorch3d.git --no-build-isolation
 
+ENV HF_HOME = "/runpod-volume/huggingface/data_Cache"
+ENV HF_HUB_CACHE = "/runpod-volume/huggingface/model_Cache"
+ENV TMPDIR = "/runpod-volume/tmp"
+
+RUN mkdir /runpod-volume/huggingface/data_Cache \
+    /runpod-volume/hugginface/model_Cache
+
+VOLUME [ "/runpod-volume" ]
+
 CMD ["sleep", "infinity"]
