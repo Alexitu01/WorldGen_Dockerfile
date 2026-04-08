@@ -1,6 +1,6 @@
 from worldgen import WorldGen
+import runpod
 from PIL import Image
-from plyfile import PlyData
 from datetime import datetime
 import torch
 import os
@@ -10,12 +10,13 @@ import base64
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # Defines the device based on a strong enough gpu
 worldgen = WorldGen(mode="i2s", device=device, low_vram=False) # Worldgen setup
 
-async def genereate(_prompt: str, _input: str):
+async def handler(event):
     
+    _input = event['input']
     #Turn the uploaded bytestring of the image into the image type that worldgen expects: 'Image' object from PIL
-    _image = Image.open(BytesIO(base64.b64decode(_input)))
+    _image = Image.open(BytesIO(base64.b64decode(_input.get('image'))))
     _image.load()
-    splat = worldgen.generate_world(image= _image, prompt= _prompt) #Generate 3D world in form of splat
+    splat = worldgen.generate_world(image= _image, prompt=_input.get('prompt')) #Generate 3D world in form of splat
 
     #Define a unique name for the .ply file with the current time.
     filename = str(datetime.now().timestamp()) + ".ply"
@@ -26,8 +27,11 @@ async def genereate(_prompt: str, _input: str):
     with open(filename, "rb") as f:
         data = f.read()
     
-    #Remove because of limited space
+    #Remove because of lStimited space
     os.remove(filename)
     
     
-    return data
+    return {"base64_result": base64.b64encode(data).decode("ascii")}
+
+if __name__ == '__main__':
+    runpod.serverless.start({'handler': handler })
