@@ -27,25 +27,23 @@ WORKDIR /workspace/SPAG4d
 
 # PyTorch — cu121 as specified in README
 RUN pip install --no-cache-dir torch torchvision \
-    --index-url https://download.pytorch.org/whl/cu121
+    --index-url https://download.pytorch.org/whl/cu121 && \
+    # SPAG4D dependencies from requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    # DA360 depth model (recommended over DAP per README)
+    git clone https://github.com/Insta360-Research-Team/DA360 spag4d/da360_arch/DA360 --depth 1 && \
+    # DAP submodule (also needed as fallback)
+    git submodule update --init --recursive --depth 1 && \
+    # plyfile - listed as optional in README but needed for .ply export
+    pip install --no-cache-dir plyfile
+    
+#Dependencies - first: runpod
+RUN pip install --no-cache-dir runpod && \
+    #google-auth dependencies
+    pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client && \
+    #Pillow installation
+    pip install pillow
 
-# SPAG4D dependencies from requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-# DA360 depth model (recommended over DAP per README)
-RUN git clone https://github.com/Insta360-Research-Team/DA360 \
-    spag4d/da360_arch/DA360 --depth 1
-
-# DAP submodule (also needed as fallback)
-RUN git submodule update --init --recursive --depth 1
-
-# plyfile - listed as optional in README but needed for .ply export
-RUN pip install --no-cache-dir plyfile
-
-# runpod 
-RUN pip install --no-cache-dir runpod
-
-WORKDIR /workspace
 COPY startup.py .
 
 # Model weights download at runtime via startup.py
