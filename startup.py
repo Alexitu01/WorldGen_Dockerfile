@@ -8,6 +8,10 @@ from io import BytesIO
 import base64
 import subprocess
 import sys
+import json
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 
 
 # Download model weights on first run - writes to persistent volume
@@ -65,6 +69,54 @@ async def handler(event):
     
     
     return {"base64_result": base64.b64encode(data).decode("ascii")}
+
+def get_drive_service():
+    # os.environ["..."] gets the service account credentials in base64 format
+    # b64decode() decoedes the base64 into bytes
+    # decode("utf-8") turns the bytes into a Python str containing the credentials in JSON TEXT
+    # json.loads() turns the 'str' into a dict object
+    sa_info = json.loads(base64.b64decode(os.environ["GDRIVE_SA_JSON_B64"]).decode("utf-8"))
+    
+    # This defines the credentials in the correct format that the "build()" method expects:
+    # It uses the module service_account, which has the class Credentials, which contains the 
+    # method 'from_service_account_info' which according to the docs: "Creates a Credentials instance from parsed service account info"
+    creds = service_account.Credentials.from_service_account_info(
+        sa_info,
+        #Scopes defines what the credentials can give access to - in this 'drive' gives access to everything.
+        scopes=["https://www.googleapis.com/auth/drive"]
+    )
+    #This constructs the resource that allows interaction with the google api.
+    return build("drive", "v3", credentials=creds, cache_discovery=False)
+
+
+def upload_to_drive(filename):
+    #Gets the id for the correct folder
+    folder_id = os.environ["GDRIVE_FOLDER_ID"]
+    
+    try:
+        service = get_drive_service()
+        
+        #Json format of the file's name, and what folder to put it in.
+        #(Folder is put in an array, because 'parents' infers multiple folders)
+        meta_info = {"name": filename, "parents": [folder_id]}
+        
+        #This tells whatever gets this object, to wrap the file bytes in an uplaod stream object
+        #so the file is sent in chunks instead of one big and heavy chunk.
+        media = MediaFileUpload(filename, mimetype="application/octet-stream", resumable =True)
+        #Creates files with the relevant information, and then returns the field "id".
+        create_files = service.files().create(body = meta_info, media_body =media, fields="id").execute()
+        file_id = create_files["id"]
+        
+        #After the file is uploaded it needs to change permissions on the file, so anyone can read it.
+        service.permissions().create(fileId=file_id, body={"type": "anyone", "role": "reader"}).execute()
+
+        #Return the file_id and the download url.
+        return {
+            "file_id": file_id,
+            "download_url": f"https://drive.google.com/uc?export=download&id={file_id}"
+        }
+    except Exception as e:
+        return {"error_message": str(e)}
 
 if __name__ == '__main__':
     runpod.serverless.start({'handler': handler })
