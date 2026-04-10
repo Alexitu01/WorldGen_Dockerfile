@@ -9,8 +9,6 @@ import base64
 import subprocess
 import sys
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # Defines the device based on a strong enough gpu
-worldgen = WorldGen(mode="i2s", device=device, low_vram=False) # Worldgen setup
 
 # Download model weights on first run - writes to persistent volume
 # Skipped if weights already exist from a previous run
