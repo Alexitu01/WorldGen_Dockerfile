@@ -40,7 +40,7 @@ converter = SPAG4D(device=device)
 async def handler(event):
     
     _input = event['input']
-    #Turn the uploaded bytestring of the image into the image type that worldgen expects: 'Image' object from PIL
+    #Turn the uploaded bytestring of the image into the image type that SPAG4D expects: 'Image' object from PIL
     _image = Image.open(BytesIO(base64.b64decode(_input.get('image'))))
     _image.load()
 
@@ -59,16 +59,12 @@ async def handler(event):
     
     print(f"Generated {result.splat_count:,} splats")
         
-    # Get the file that was saved (This is the only way to get a pointer to the .ply file - worldgen documentation only allows receiving 
-    # the generated .ply file if it is specifically written to the disk)
-    with open(filename, "rb") as f:
-        data = f.read()
+    upload_result = upload_to_drive(filename)
     
-    #Remove because of lStimited space
-    os.remove(filename)
+    if os.path.exists(filename):
+        os.remove(filename)
     
-    
-    return {"base64_result": base64.b64encode(data).decode("ascii")}
+    return upload_result
 
 def get_drive_service():
     # os.environ["..."] gets the service account credentials in base64 format
@@ -100,8 +96,8 @@ def upload_to_drive(filename):
         #(Folder is put in an array, because 'parents' infers multiple folders)
         meta_info = {"name": filename, "parents": [folder_id]}
         
-        #This tells whatever gets this object, to wrap the file bytes in an uplaod stream object
-        #so the file is sent in chunks instead of one big and heavy chunk.
+        #This tells whatever gets this object, to wrap the bytes of the file from the filename
+        # in an upload stream object so the file is sent in chunks instead of one big and heavy chunk.
         media = MediaFileUpload(filename, mimetype="application/octet-stream", resumable =True)
         #Creates files with the relevant information, and then returns the field "id".
         create_files = service.files().create(body = meta_info, media_body =media, fields="id").execute()
